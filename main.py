@@ -50,3 +50,12 @@ interactions_full_df = interactions_from_selected_users_df.groupby(['personId', 
 
 print('# of unique user/item interactions: %d' % len(interactions_full_df))
 interactions_full_df.head(10)
+
+interactions_train_df, interactions_test_df = train_test_split(interactions_full_df,
+                                                               stratify=interactions_full_df['personId'],
+                                                               test_size=0.20,
+                                                               random_state=42)
+
+print('# interactions on Train set: %d' % len(interactions_train_df))
+print('# interactions on Test set: %d' % len(interactions_test_df))
+
