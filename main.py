@@ -186,21 +186,66 @@ class PopularityRecommender:
 
 popularity_model = PopularityRecommender(item_popularity_df, articles_df)
 
-print('Evaluating Popularity recommendation model...')
+# print('Evaluating Popularity recommendation model...')
 pop_global_metrics, pop_detailed_results_df = model_evaluator.evaluate_model(popularity_model)
-print('\nGlobal metrics:\n%s' % pop_global_metrics)
+# print('\nGlobal metrics:\n%s' % pop_global_metrics)
 pop_detailed_results_df.head(10)
 
+users_items_pivot_matrix_df = interactions_train_df.pivot(index='personId',
+                                                          columns='contentId',
+                                                          values='eventStrength').fillna(0)
 
+users_items_pivot_matrix = users_items_pivot_matrix_df.as_matrix()
+users_items_pivot_matrix[:10]
 
+users_ids = list(users_items_pivot_matrix_df.index)
+users_ids[:10]
 
+users_items_pivot_sparse_matrix = csr_matrix(users_items_pivot_matrix)
+users_items_pivot_sparse_matrix
 
+NUMBER_OF_FACTORS_MF = 15
 
+U, sigma, Vt = svds(users_items_pivot_sparse_matrix, k = NUMBER_OF_FACTORS_MF)
 
+all_user_predicted_ratings = np.dot(np.dot(U, sigma), Vt)
+all_user_predicted_ratings
 
+all_user_predicted_ratings_norm = (all_user_predicted_ratings - all_user_predicted_ratings.min()) / (all_user_predicted_ratings.max() - all_user_predicted_ratings.min())
 
+cf_preds_df = pd.DataFrame(all_user_predicted_ratings_norm, columns = users_items_pivot_matrix_df.columns, index=users_ids).transpose()
+cf_preds_df.head(10)
 
+len(cf_preds_df.columns)
 
+class CFRecommender:
 
+    MODEL_NAME = 'Collaborative Filtering'
 
+    def __init__(self, cf_predictions_df, items_df=None):
+        self.cf_predictions_df = cf_predictions_df
+        self.items_df = items_df
 
+    def get_model_name(self):
+        return self.MODEL_NAME
+
+    def recommend_items(self, user_id, items_to_ignore=[], topn=10, verbose=False):
+        sorted_user_predictions = self.cf_predictions_df[user_id].sort_values(ascending=False) \
+            .reset_index().rename(columns={user_id: 'recStrength'})
+
+        recommendations_df = sorted_user_predictions[~sorted_user_predictions['contentId'].isin(items_to_ignore)] \
+            .sort_values('recStrength', ascending=False) \
+            .head(topn)
+
+        if verbose:
+            if self.items_df is None:
+                raise Exception('"items_df" is required in verbose mode')
+
+        recommendations_df = recommendations_df.merge(self.items_df, how='left',
+                                                      left_on='contentId',
+                                                      right_on='contentId')[
+            ['recStrength', 'contentId', 'title', 'url', 'lang']]
+
+        return recommendations_df
+
+cf_recommender_model = CFRecommender(cf_preds_df, articles_df)
