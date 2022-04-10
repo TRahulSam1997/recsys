@@ -249,3 +249,9 @@ class CFRecommender:
         return recommendations_df
 
 cf_recommender_model = CFRecommender(cf_preds_df, articles_df)
+
+print('Evaluating Collaborative Filtering (SVD Matrix Factorization) model...')
+cf_global_metrics, cf_detailed_results_df = model_evaluator.evaluate_model(cf_recommender_model)
+print('\nGlobal metrics:\n%s' % cf_global_metrics)
+cf_detailed_results_df.head(10)
+
